@@ -1,1 +1,497 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>SATO 沙盒模拟器 | 联合曲线交互演示</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none; /* 避免拖动按钮文字，提升点击体验 */
+        }
 
+        body {
+            background: radial-gradient(circle at 20% 30%, #0a0f2a, #030617);
+            font-family: 'Segoe UI', 'Poppins', 'Inter', system-ui, -apple-system, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+        }
+
+        /* 主容器 - 玻璃质感卡片 */
+        .sandbox {
+            max-width: 1300px;
+            width: 100%;
+            background: rgba(8, 16, 40, 0.65);
+            backdrop-filter: blur(12px);
+            border-radius: 3rem;
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 200, 255, 0.2);
+            padding: 2rem;
+            transition: all 0.2s;
+        }
+
+        /* 头部标题区 */
+        .hero {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .hero h1 {
+            font-size: 2.8rem;
+            background: linear-gradient(135deg, #FFF, #7df9ff, #2bd2ff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            letter-spacing: -0.5px;
+        }
+
+        .hero p {
+            color: #9aa9d1;
+            margin-top: 0.5rem;
+            font-weight: 500;
+        }
+
+        .curve-note {
+            background: #0e142eaa;
+            display: inline-block;
+            padding: 0.2rem 1rem;
+            border-radius: 40px;
+            font-size: 0.8rem;
+            color: #8cf0ff;
+            border: 0.5px solid #2c3e77;
+        }
+
+        /* 双列布局 */
+        .dashboard {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 2rem;
+            margin: 2rem 0 2rem 0;
+        }
+
+        /* 左侧——星球 + 动画区 */
+        .visual-area {
+            flex: 1.2;
+            min-width: 260px;
+            background: rgba(0, 0, 0, 0.35);
+            border-radius: 2rem;
+            padding: 1.5rem;
+            backdrop-filter: blur(4px);
+            border: 1px solid #2a3b6e;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .planet-container {
+            position: relative;
+            width: 220px;
+            height: 220px;
+            margin: 1rem auto;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            border-radius: 50%;
+            box-shadow: 0 0 40px rgba(0, 230, 250, 0.4);
+            cursor: pointer;
+        }
+
+        .energy-feedback {
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            background: #00000066;
+            padding: 0.5rem 1rem;
+            border-radius: 60px;
+            color: #b1f0ff;
+            min-height: 70px;
+            text-align: center;
+        }
+
+        /* 右侧——沙盒控制台 */
+        .console {
+            flex: 1;
+            min-width: 300px;
+            background: #0a0f24cc;
+            border-radius: 2rem;
+            padding: 1.6rem;
+            border: 1px solid #2e4272;
+            box-shadow: 0 8px 18px rgba(0,0,0,0.3);
+        }
+
+        .stat-card {
+            background: #010514;
+            padding: 0.8rem;
+            border-radius: 1.5rem;
+            margin-bottom: 1.2rem;
+            border-left: 4px solid #0ff;
+        }
+
+        .stat-value {
+            font-size: 1.7rem;
+            font-weight: bold;
+            font-family: monospace;
+            letter-spacing: 1px;
+            color: #f0f9ff;
+        }
+
+        .stat-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            color: #6b8cae;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 1rem;
+            margin: 1.5rem 0;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 1rem 0;
+            font-weight: bold;
+            font-size: 1.2rem;
+            border: none;
+            border-radius: 60px;
+            cursor: pointer;
+            transition: 0.1s linear;
+            font-family: inherit;
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+
+        .btn-buy {
+            background: linear-gradient(95deg, #0a8c40, #0bc26e);
+            box-shadow: 0 4px 12px #0bc26e40;
+            color: white;
+        }
+        .btn-buy:active { transform: scale(0.97); background: #089c50;}
+
+        .btn-sell {
+            background: linear-gradient(95deg, #b33b1c, #e05a2a);
+            box-shadow: 0 4px 12px #e05a2a40;
+            color: white;
+        }
+        .btn-sell:active { transform: scale(0.97); background: #c2431c;}
+
+        .btn-reset {
+            background: #2d374b;
+            color: #c0e0ff;
+            box-shadow: none;
+            font-size: 0.9rem;
+        }
+
+        .warning-badge {
+            background: #3a1e2a;
+            color: #ffaeae;
+            border-radius: 1rem;
+            padding: 0.6rem;
+            text-align: center;
+            font-size: 0.7rem;
+            margin-top: 1rem;
+        }
+
+        .footer {
+            font-size: 0.7rem;
+            text-align: center;
+            color: #5b6f91;
+            border-top: 1px solid #1f2942;
+            padding-top: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        @media (max-width: 760px) {
+            body { padding: 1rem; }
+            .sandbox { padding: 1rem; }
+            .hero h1 { font-size: 1.8rem; }
+            .stat-value { font-size: 1.2rem; }
+        }
+
+        .glow-text {
+            color: #0ff;
+            text-shadow: 0 0 5px #0ff;
+        }
+    </style>
+</head>
+<body>
+
+<div class="sandbox">
+    <div class="hero">
+        <h1>⚛️ SATO 联合曲线 · 引力沙盒</h1>
+        <p>「代码即法律」| 每一次买入都会推高下一次铸造的引力</p>
+        <div class="curve-note">🔮 模拟稀土采矿模型 | 铸造价 = 销毁价 + 曲线溢价</div>
+    </div>
+
+    <div class="dashboard">
+        <!-- 左侧视觉星球 -->
+        <div class="visual-area">
+            <div class="planet-container">
+                <canvas id="planetCanvas" width="300" height="300" style="width:100%; height:100%;"></canvas>
+            </div>
+            <div class="energy-feedback" id="actionFeedback">
+                💠 点击按钮，向数字奇观发送指令<br>
+                <span style="font-size:0.75rem;">⚡ Mint 消耗 ETH / Burn 回收部分 ETH</span>
+            </div>
+        </div>
+
+        <!-- 右侧交互沙盒 -->
+        <div class="console">
+            <div class="stat-card">
+                <div class="stat-label">📦 当前总供应量 (模拟 Supply)</div>
+                <div class="stat-value" id="supplyDisplay">0.00</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">⚡ 实时铸造价格 (Mint Price)</div>
+                <div class="stat-value" id="mintPriceDisplay">$1.000</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">🔥 实时销毁底价 (Burn Price)</div>
+                <div class="stat-value" id="burnPriceDisplay">$0.700</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">💎 储备 ETH 模拟 (Reserve)</div>
+                <div class="stat-value" id="reserveDisplay">0.00 ETH</div>
+            </div>
+
+            <div class="button-group">
+                <button class="btn btn-buy" id="buyBtn">🟢 买入 / 铸造 SATO</button>
+                <button class="btn btn-sell" id="sellBtn">🔴 卖出 / 销毁 SATO</button>
+            </div>
+            <div class="button-group">
+                <button class="btn btn-reset" id="resetBtn">⟳ 重置模拟 (回归创世)</button>
+            </div>
+            <div class="warning-badge">
+                ⚠️ 模拟演示：铸造成本永久高于销毁价，两者差额代表“协议引力”<br>
+                ✅ 体现 SATO 核心规则：卖出价格永远≤买入价格，长期支撑储备沉淀。
+            </div>
+        </div>
+    </div>
+    <div class="footer">
+        🧪 沙盒模拟 | 基于 Bonding Curve: mint_price = base + slope * supply² <br>
+        仅供演示联合曲线机制，让你理解「为什么买入抬高地板，卖出永不可能赚取溢价差」。
+    </div>
+</div>
+
+<script>
+    (function(){
+        // ---------- SATO 联合曲线参数 ----------
+        // 采用二次曲线模拟: mintPrice = 0.8 + (supply / max_supply_norm)^2 * 3 
+        // 同时销毁价始终 = mintPrice * 0.7（严格低于铸造价，体现协议“不对称”）
+        // 储备 ETH 随买入增加，随卖出减少 (卖出时依据销毁价给ETH)
+        
+        let supply = 50000;        // 初始模拟供应量 (单位: 枚)
+        let reserveETH = 42000;     // 储备 ETH (初始匹配)
+        
+        // 曲线边界: 最大模拟供给 1500万 (演示足够)
+        const MAX_SUPPLY = 15_000_000;
+        const MIN_SUPPLY = 0;
+        
+        // 价格常数因子
+        const BASE_MINT = 0.75;
+        const CURVE_FACTOR = 0.000000045;  // 乘以 supply^2 制造价格加速
+        
+        // 销毁折扣 (相对 mintPrice)
+        const BURN_DISCOUNT = 0.68;   // 销毁价 = mintPrice * 0.68, 永远低于市场价
+        
+        // 为了方便 demo，每次买入固定数量（展示价格变动）
+        const BUY_AMOUNT = 2500;       // 每次买入 2500 枚
+        const SELL_AMOUNT = 2500;
+        
+        // DOM 元素
+        const supplyEl = document.getElementById('supplyDisplay');
+        const mintPriceEl = document.getElementById('mintPriceDisplay');
+        const burnPriceEl = document.getElementById('burnPriceDisplay');
+        const reserveEl = document.getElementById('reserveDisplay');
+        const feedbackDiv = document.getElementById('actionFeedback');
+        
+        // Canvas 星球动画
+        const canvas = document.getElementById('planetCanvas');
+        const ctx = canvas.getContext('2d');
+        let animationFrame;
+        let pulse = 0;
+        
+        function getMintPrice(currentSupply) {
+            // 让价格随供应量二次方增长
+            let price = BASE_MINT + CURVE_FACTOR * currentSupply * currentSupply;
+            // 限制最高演示价格 $6.0 避免失控
+            return Math.min(price, 6.2);
+        }
+        
+        function getBurnPrice(currentSupply) {
+            let mint = getMintPrice(currentSupply);
+            return mint * BURN_DISCOUNT;
+        }
+        
+        // 更新界面 & 重绘
+        function updateUI() {
+            supplyEl.innerText = supply.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            let mintP = getMintPrice(supply);
+            let burnP = getBurnPrice(supply);
+            mintPriceEl.innerText = `$${mintP.toFixed(4)}`;
+            burnPriceEl.innerText = `$${burnP.toFixed(4)}`;
+            reserveEl.innerText = reserveETH.toFixed(4) + " ETH";
+        }
+        
+        // 买入逻辑 (铸造)
+        function executeBuy() {
+            let mintPrice = getMintPrice(supply);
+            let costETH = mintPrice * BUY_AMOUNT;
+            // 新供应
+            let newSupply = supply + BUY_AMOUNT;
+            if(newSupply > MAX_SUPPLY) {
+                feedbackDiv.innerHTML = "⚠️ 已达到最大模拟供应上限，无法继续铸造 (稀缺极限)";
+                return;
+            }
+            // 更新储备: 支付的ETH进入储备池
+            reserveETH += costETH;
+            supply = newSupply;
+            
+            // 反馈信息
+            let newMintPrice = getMintPrice(supply);
+            feedbackDiv.innerHTML = `✅ 买入 ${BUY_AMOUNT} SATO | 支付 ${costETH.toFixed(4)} ETH<br>
+            ⚡ 铸造成本上升: $${mintPrice.toFixed(4)} → $${newMintPrice.toFixed(4)}<br>
+            🔥 销毁底价同步抬升，体现联合曲线引力。`;
+            updateUI();
+            triggerPlanetPulse('buy');
+        }
+        
+        // 卖出逻辑 (销毁，回收ETH)
+        function executeSell() {
+            if(supply < SELL_AMOUNT) {
+                feedbackDiv.innerHTML = "❌ 持有量不足，无法卖出演示 (供应量过低)";
+                return;
+            }
+            let currentBurnPrice = getBurnPrice(supply);
+            let receiveETH = currentBurnPrice * SELL_AMOUNT;
+            if(receiveETH < 0) return;
+            
+            // 卖出后供应减少
+            let newSupply = supply - SELL_AMOUNT;
+            if(newSupply < MIN_SUPPLY) newSupply = 0;
+            
+            // 储备ETH减少: 用户赎回部分ETH
+            reserveETH -= receiveETH;
+            if(reserveETH < 0) reserveETH = 0;
+            supply = newSupply;
+            
+            let newBurnPrice = getBurnPrice(supply);
+            feedbackDiv.innerHTML = `🔻 卖出 ${SELL_AMOUNT} SATO | 回收 ${receiveETH.toFixed(4)} ETH<br>
+            🧾 销毁价调整: $${currentBurnPrice.toFixed(4)} → $${newBurnPrice.toFixed(4)}<br>
+            💡 请记住: 销毁价永远低于铸造价，这是结构性设计。`;
+            updateUI();
+            triggerPlanetPulse('sell');
+        }
+        
+        function resetSimulation() {
+            supply = 50000;
+            reserveETH = 42000;
+            updateUI();
+            feedbackDiv.innerHTML = "🌀 宇宙重启 | 回归初始供应 50,000 SATO，储备ETH重置<br>✨ 联合曲线回到初始斜率，继续探索。";
+            triggerPlanetPulse('reset');
+        }
+        
+        // 星球脉冲动画 (买入/卖出时特效)
+        let pulseIntensity = 0;
+        function triggerPlanetPulse(type) {
+            pulseIntensity = 1.0;
+            if(type === 'buy') pulseIntensity = 1.2;
+            if(type === 'sell') pulseIntensity = 0.9;
+            setTimeout(() => { pulseIntensity = 0; }, 300);
+        }
+        
+        // 绘制动态星球 (带引力光环)
+        function drawPlanet() {
+            if(!ctx) return;
+            const w = canvas.width, h = canvas.height;
+            ctx.clearRect(0, 0, w, h);
+            
+            // 动态脉冲效果
+            let scale = 1 + (pulseIntensity * 0.07);
+            let radius = 120 * scale;
+            let centerX = w/2, centerY = h/2;
+            
+            // 外层光晕
+            let grad = ctx.createRadialGradient(centerX-10, centerY-10, 10, centerX, centerY, radius+15);
+            grad.addColorStop(0, '#2bd2ff40');
+            grad.addColorStop(1, '#0a1a3a');
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius+12, 0, Math.PI*2);
+            ctx.fillStyle = grad;
+            ctx.fill();
+            
+            // 主星体
+            let mainGrd = ctx.createLinearGradient(centerX-30, centerY-30, centerX+30, centerY+30);
+            mainGrd.addColorStop(0, '#2c5c8c');
+            mainGrd.addColorStop(1, '#0e2a4a');
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, 0, Math.PI*2);
+            ctx.fillStyle = mainGrd;
+            ctx.fill();
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = '#0ff';
+            ctx.strokeStyle = '#7df9ff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+            
+            // 引力环 (曲线环) 表示联合曲线
+            for(let i=0;i<3;i++) {
+                let ringR = radius + 8 + i*6;
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, ringR, 0, Math.PI*2);
+                ctx.strokeStyle = `rgba(0, 210, 255, ${0.4 - i*0.1})`;
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+            }
+            
+            // 数据点阵 示意 mint/supply
+            ctx.font = "bold 14px monospace";
+            ctx.fillStyle = "#ccf6ff";
+            ctx.shadowBlur = 0;
+            ctx.fillText("⚡", centerX-15, centerY-20);
+            ctx.fillText("📈", centerX+20, centerY+10);
+        }
+        
+        function animatePlanet() {
+            drawPlanet();
+            requestAnimationFrame(animatePlanet);
+        }
+        
+        // 绑定按钮
+        document.getElementById('buyBtn').addEventListener('click', executeBuy);
+        document.getElementById('sellBtn').addEventListener('click', executeSell);
+        document.getElementById('resetBtn').addEventListener('click', resetSimulation);
+        
+        // 初始化
+        updateUI();
+        animatePlanet();
+        
+        // 添加响应式尺寸调整时 canvas 适配尺寸
+        function resizeCanvas() {
+            const container = document.querySelector('.planet-container');
+            const size = container.clientWidth;
+            canvas.style.width = `${size}px`;
+            canvas.style.height = `${size}px`;
+            canvas.width = size;
+            canvas.height = size;
+            drawPlanet();
+        }
+        window.addEventListener('resize', () => { resizeCanvas(); });
+        setTimeout(resizeCanvas, 100);
+        
+        // 初始反馈
+        feedbackDiv.innerHTML = "🚀 欢迎来到 SATO 引力沙盒 | 点击买入/卖出，观察联合曲线价格变化。<br> 每一次买入都会抬高下一个铸造价格，销毁价永不能超越铸造价。";
+    })();
+</script>
+</body>
+</html>
